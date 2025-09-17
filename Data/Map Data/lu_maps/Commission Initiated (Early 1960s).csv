@@ -1,0 +1,152 @@
+﻿OBJECTID,Land Use,Shape__Area,Shape__Length
+1,Agriculture,"38,502,485.61","64,418.16"
+2,Agriculture,"117,763.40","1,797.71"
+3,Agriculture,"5,026,330.69","14,928.81"
+4,Apartment,"12,881.30",589.28
+5,Apartment,"44,289.18",939.99
+6,Apartment,"94,476.16","1,257.20"
+7,Apartment,"39,068.97",748.58
+8,Apartment,"24,388.80",779.47
+9,Apartment,"27,961.59",820.66
+10,Apartment,"17,531.98",532.71
+11,Apartment,"293,223.14","3,334.65"
+12,Apartment,"59,603.20","1,052.82"
+13,Apartment,"33,309.57",832.28
+14,Apartment,"29,439.51",739.40
+15,Apartment,"8,423.60",363.49
+16,Apartment,"174,016.98","1,893.82"
+17,Cemetery,"142,378.37","2,639.90"
+18,Commercial,"57,650.91","1,087.10"
+19,Commercial,"51,011.61","1,078.52"
+20,Commercial,"296,537.20","3,504.39"
+21,Commercial,"29,562.42",661.69
+22,Commercial,"114,282.90","1,827.58"
+23,Commercial,"35,709.75",953.11
+24,Commercial,"20,338.67",747.78
+25,Commercial,"20,116.44",634.49
+26,Commercial,"5,459.87",300.63
+27,Commercial,"17,300.44",596.59
+28,Commercial,"86,075.13","1,501.12"
+29,Commercial,"24,233.90",634.98
+30,Industrial,"206,682.79","1,886.83"
+31,Industrial,"970,369.59","3,871.08"
+32,Industrial,"555,067.23","3,815.95"
+33,Industrial,"74,955.85","1,139.18"
+34,Industrial,"354,021.25","3,363.21"
+35,Industrial,"224,321.81","2,170.01"
+36,Industrial,"140,407.32","1,684.12"
+37,Industrial,"18,405.41",531.21
+38,Industrial,"390,456.72","3,200.09"
+39,Industrial,"74,515.60","1,069.57"
+40,Military,"883,273.41","5,033.18"
+41,Military,"7,924,169.76","19,966.57"
+42,Military,"14,242,821.15","26,134.54"
+43,Military,0.21,22.63
+44,Military,"2,744,668.40","8,607.70"
+45,Military,"2,138,721.52","8,502.73"
+46,Military,"180,044.67","1,847.15"
+47,Military,"83,278.93","1,460.88"
+48,Military,"241,756.47","2,523.42"
+49,Military,"458,075.98","2,961.47"
+50,Military,"253,666.38","2,231.61"
+51,Military,"21,603,598.85","59,882.50"
+52,Parks/Recreation,"35,182.98",723.44
+53,Parks/Recreation,"27,469.94",705.22
+54,Parks/Recreation,"42,090.82",898.14
+55,Parks/Recreation,"2,153.15",216.22
+56,Parks/Recreation,"24,597.11",626.78
+57,Parks/Recreation,"36,805.17",831.72
+58,Parks/Recreation,"94,866.46","1,277.19"
+59,Parks/Recreation,"3,054.14",202.41
+60,Parks/Recreation,"36,460.38",742.77
+61,Parks/Recreation,"29,465.98",656.29
+62,Parks/Recreation,"79,419.21","1,154.01"
+63,Parks/Recreation,"24,256.06",692.26
+64,Parks/Recreation,"22,015.57",600.12
+65,Parks/Recreation,"13,486.57",452.93
+66,Parks/Recreation,"52,387.57",922.91
+67,Parks/Recreation,"146,214.29","1,721.88"
+68,Parks/Recreation,"79,715.60","1,155.82"
+69,Parks/Recreation,"18,477.67",546.68
+70,Parks/Recreation,"39,547.17",878.22
+71,Parks/Recreation,"55,594.85","1,034.17"
+72,Parks/Recreation,"26,932.39",704.66
+73,Parks/Recreation,"63,967.32","1,346.80"
+74,Parks/Recreation,"33,799.43",912.70
+75,Preservation,"73,978.42",965.54
+76,Preservation,"19,135.46",490.99
+77,Preservation,"37,226.58",684.17
+78,Preservation,"61,695.28",881.55
+79,Preservation,"41,680.10",724.75
+80,Public Facilities,"5,362.81",286.13
+81,Public Facilities,"215,669.65","2,114.60"
+82,Public Facilities,"72,221.04","1,203.29"
+83,Public Facilities,"42,227.37",827.25
+84,Public Facilities,"10,367.21",409.39
+85,Public Facilities,"41,250.71","1,334.30"
+86,Public Facilities,"39,735.59",770.13
+87,Public Facilities,"43,666.70",838.73
+88,Public Facilities,"73,507.16","1,195.35"
+89,Public Facilities,"85,355.00","1,551.02"
+90,Public Facilities,"37,970.98",784.00
+91,Public Facilities,"102,723.01","1,398.86"
+92,Public Facilities,"768,038.76","3,740.58"
+93,Public Facilities,"823,054.03","5,147.08"
+94,Public Facilities,"113,917.17","1,282.86"
+95,Public Facilities,"27,390.43",771.71
+96,Public Facilities,"2,270.87",191.56
+97,Public Facilities,"22,993.10",619.36
+98,Public Facilities,"42,229.49",943.91
+99,Public Facilities,"118,650.32","1,332.81"
+100,Public Facilities,"37,756.27",795.88
+101,Public Facilities,"31,279.74",710.27
+102,Public Facilities,"16,785.86",523.60
+103,Public Facilities,"19,808.55",567.36
+104,Public Facilities,"41,658.04",824.04
+105,Public Facilities,"38,337.27",785.93
+106,Public Facilities,"25,842.36",663.53
+107,Public Facilities,"508,820.48","3,068.17"
+108,Public Facilities,"160,972.76","2,150.73"
+109,Public Facilities,"28,219.70",735.33
+110,Public Facilities,"38,403.39","1,066.91"
+111,Public Facilities,"53,467.00",974.86
+112,Public Facilities,"44,419.24",862.19
+113,Public Facilities,"18,341.33",548.61
+114,Public Facilities,"89,537.19","1,204.67"
+115,Public Facilities,"16,172.65",507.28
+116,Public Facilities,"53,562.27",930.55
+117,Public Facilities,"45,296.50",910.36
+118,Public Facilities,"9,620.07",383.68
+119,Public Facilities,"47,776.42","1,029.90"
+120,Public Facilities,"81,908.53","1,351.51"
+121,Public Facilities,"99,286.68","1,493.88"
+122,Public Facilities,"803,781.12","7,487.40"
+123,Residential,"911,465.27","4,389.97"
+124,Residential,"586,677.74","5,852.19"
+125,Residential,"177,676.98","2,367.09"
+126,Residential,"360,152.84","2,628.48"
+127,Residential,"927,352.43","4,844.02"
+128,Residential,"49,470.66",955.32
+129,Residential,"1,828,252.67","10,801.51"
+130,Residential,"2,969,974.62","13,295.50"
+131,Residential,"75,987.41","1,258.58"
+132,Residential,"19,309,503.83","60,436.34"
+133,Residential,"1,687,158.77","6,803.20"
+134,Residential,"716,457.29","3,335.94"
+135,Agriculture,"8,005.66",402.14
+136,Parks/Recreation,"10,767.14",434.77
+137,Military,"508,421.36","3,862.34"
+138,Agriculture,2.10,49.11
+139,Preservation,"18,573.23",551.78
+140,Public Facilities,"116,164.41","1,541.07"
+141,Parks/Recreation,"61,882.64","1,105.93"
+142,Public Facilities,"47,886.29",879.07
+143,Parks/Recreation,"183,005.67","2,439.39"
+144,Preservation,"251,203.09","3,151.73"
+145,Parks/Recreation,"316,901.41","3,898.85"
+146,Preservation,"68,528.89",928.24
+147,Commercial,"12,829.35",459.78
+148,Preservation,"223,261.90","2,623.71"
+149,Parks/Recreation,"1,152,660.16","5,897.75"
+150,Agriculture,"321,845.21","2,547.48"
+151,Public Facilities,"64,087.42","1,031.87"

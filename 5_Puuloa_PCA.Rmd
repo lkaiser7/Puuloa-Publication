@@ -1,0 +1,812 @@
+---
+title: "puuloa_project"
+output: html_document
+date: "2025-06-04"
+---
+
+```{r read in data}
+# ----------------------------------------
+# Puuloa contaminants (4-June-2025)
+# ----------------------------------------
+# ------------------------------------------------------------
+# Load Required Libraries
+# ------------------------------------------------------------
+library(dplyr)
+library(janitor)
+library(lubridate)
+library(stringr)
+library(tidygeocoder)
+library(tidyr)
+library(ggplot2)
+
+# ------------------------------------------------------------
+# Step 1: Read and Clean Raw Data
+# ------------------------------------------------------------
+puuloa_contaminants <- read.csv(
+  "/Users/mcomeros/Downloads/Contamination_Formatted.csv",        #use updated contaminants spreadsheet (23-June-2025)
+  stringsAsFactors = FALSE
+) %>%
+  janitor::clean_names()
+
+# ------------------------------------------------------------
+# Step 2: Standardize Key Text Columns
+# ------------------------------------------------------------
+
+library(dplyr)
+library(stringr)
+
+puuloa_contaminants2 <- puuloa_contaminants %>%
+  mutate(
+    contaminant_type = tolower(contaminant_type),
+    land_use_type = tolower(land_use_type),
+    
+    contaminant_type_clean = case_when(
+      str_detect(contaminant_type, "metals") ~ "metals",
+      str_detect(contaminant_type, "legacy pesticides") ~ "legacy_pest",
+      str_detect(contaminant_type, "pesticides") ~ "pesticides",
+      str_detect(contaminant_type, "dioxins") ~ "dioxins",
+      str_detect(contaminant_type, "pcb") ~ "pcbs",
+      str_detect(contaminant_type, "voc") ~ "vocs",
+      str_detect(contaminant_type, "pfas") ~ "pfas",
+      str_detect(contaminant_type, "pah") ~ "pahs",
+      str_detect(contaminant_type, "petroleum") ~ "petroleum",
+      str_detect(contaminant_type, "multiple") ~ "multiple",
+      TRUE ~ "other"
+    )
+  ) %>%
+  relocate(contaminant_type_clean, .after = contaminant_type)
+
+
+
+# ------------------------------------------------------------
+# Step 3: Extract Start and End Years from Event Range
+# ------------------------------------------------------------
+
+# puuloa_contaminants <- puuloa_contaminants %>%
+#    Step 1: Rename column if it exists
+#    rename(pollution_event_range = date_of_pollution_event) %>%
+#  
+ puuloa_contaminants3 <- puuloa_contaminants2 %>%
+  # Step 1: Replace "Current" with "2025" in year range column
+  mutate(
+    cleaned_event_range = str_replace_all(date_of_pollution_event, "Current", "2025")
+  ) %>%
+  
+  # Step 2: Extract and calculate pollution year range
+  mutate(
+    clean_range = str_replace_all(cleaned_event_range, "[^0-9\\-]", ""),
+    start_year = as.numeric(str_extract(clean_range, "^\\d{4}")),
+    end_year_raw = str_extract(clean_range, "\\d{4}$"),
+    end_year = as.numeric(end_year_raw),
+    end_year = ifelse(is.na(end_year), as.numeric(format(Sys.Date(), "%Y")), end_year),
+    duration_years = end_year - start_year
+  ) %>%
+  
+  # Step 3: Reorder columns so start_year, end_year, duration_years appear after original column
+  relocate(start_year, end_year, duration_years, .after = date_of_pollution_event) %>%
+  
+  # Step 4: Drop intermediate cleaning variables
+  select(-clean_range, -end_year_raw, -cleaned_event_range)
+
+
+# ------------------------------------------------------------
+# Step 4: Convert Columns to Factor (Optional, for modeling/plots)
+# ------------------------------------------------------------
+puuloa_contaminants3 <- puuloa_contaminants3 %>%
+  mutate(
+    contaminant_type = as.factor(contaminant_type_clean),
+    land_use_type = as.factor(land_use_type)
+  )
+
+# ------------------------------------------------------------
+# Step 5: Summarize Pollution Year Range
+# ------------------------------------------------------------
+pollution_year_summary <- puuloa_contaminants3 %>%
+  summarize(
+    earliest_start_year = min(start_year, na.rm = TRUE),
+    latest_end_year = max(end_year, na.rm = TRUE),
+    max_duration = max(duration_years, na.rm = TRUE),
+    avg_duration = mean(duration_years, na.rm = TRUE)
+  )
+
+print(paste("Number of contaminant types:", n_distinct(puuloa_contaminants$contaminant_type)))
+print(paste("Number of land use types:", n_distinct(puuloa_contaminants$land_use_type)))
+print(pollution_year_summary)
+
+# ------------------------------------------------------------
+# Step 6: Check for Missing Values
+# ------------------------------------------------------------
+missing_summary <- puuloa_contaminants3 %>%
+  dplyr::summarise(across(everything(), ~sum(is.na(.))))
+
+print("Missing values summary:")
+print(missing_summary)
+
+
+# ------------------------------------------------------------
+# Count unique contaminant types and show all values
+# ------------------------------------------------------------
+puuloa_contaminants3 %>%
+  dplyr::count(contaminant_type, sort = TRUE)
+
+unique(puuloa_contaminants$contaminant_type)
+
+
+
+# -----------------------------
+# Summaries
+# -----------------------------
+
+# Top contaminant types
+top_contaminant_types <- puuloa_contaminants3 %>%
+  dplyr::count(contaminant_type_clean, sort = TRUE)
+
+print(top_contaminant_types)
+
+# If individual contaminants exist (e.g., benzene, lead)
+top_contaminants <- puuloa_contaminants3 %>%
+  dplyr::count(contaminant, sort = TRUE)
+
+# -------------------------------
+# Land use: tidy data
+# -------------------------------
+
+# Count and view all unique land use types
+puuloa_contaminants3 %>%
+  dplyr::count(land_use_type, sort = TRUE)
+
+unique(puuloa_contaminants3$land_use_type)
+
+
+
+# ------------------------------------------------------------
+# Summarize Contaminant Group Counts by Ahupuaʻa
+#         (clean and collapse duplicates)
+# ------------------------------------------------------------
+
+# Remove blank ahupuaʻa and collapse duplicates
+clean_data <- puuloa_contaminants3 %>%
+  filter(ahupua_a != "" & !is.na(ahupua_a))
+
+land_use_lookup_all <- clean_data %>%
+  filter(!is.na(land_use_type)) %>%
+  distinct(ahupua_a, land_use_type)
+
+
+# Keep all land uses associated with each ahupuaʻa
+
+land_use_lookup2 <- clean_data %>%
+  dplyr::select(ahupua_a, land_use_type) %>%
+  dplyr::distinct() %>%
+  dplyr::arrange(ahupua_a, land_use_type)
+  )
+
+# ------------------------------------------------------------
+# Summarize Contaminant Counts and Duration
+# ------------------------------------------------------------
+
+# Summarize contaminant counts per ahupuaʻa and type
+contaminant_counts <- clean_data %>%
+  dplyr::count(ahupua_a, contaminant_type_clean) %>%
+  group_by(ahupua_a, contaminant_type_clean) %>%
+  dplyr::summarise(count = sum(n), .groups = "drop")
+
+# Summarize average duration per ahupuaʻa
+duration_summary <- clean_data %>%
+  group_by(ahupua_a) %>%
+  dplyr::summarise(mean_duration_years = round(mean(duration_years, na.rm = TRUE), 1),
+            max_duration_years = max(duration_years, na.rm = TRUE),
+            min_duration_years = min(duration_years, na.rm = TRUE),
+            total_pollution_events = n(),
+            .groups = "drop")
+
+
+# Pivot wider for contaminant types
+contaminant_wide <- contaminant_counts %>%
+  pivot_wider(names_from = contaminant_type_clean, values_from = count, values_fill = 0)
+
+# Final full summary table
+contaminant_summary <- contaminant_wide %>%
+  left_join(land_use_lookup_all, by = "ahupua_a") %>%
+  left_join(duration_summary, by = "ahupua_a")
+
+
+# Start from the full dataset: keep relevant columns
+contaminant_summary2 <- puuloa_contaminants3 %>%
+  filter(!is.na(ahupua_a) & !is.na(contaminant_type_clean)) %>%
+  select(ahupua_a, contaminant_type_clean, duration_years) %>%
+  left_join(land_use_lookup_all, by = "ahupua_a")
+
+
+
+# ------------------------------------------------------------
+# Dataset is now cleaned and ready for analysis or visualization
+# ------------------------------------------------------------
+
+```
+
+
+# Contaminant Profiles: analyses
+```{r - analyses}
+
+# ------------------------------------------------------------
+# Load Required Libraries
+# ------------------------------------------------------------
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(forcats)
+library(viridis)
+library(cluster)
+library(factoextra)
+library(tibble)
+library(tidyverse)
+library(cowplot)
+
+# ------------------------------------------------------------
+# Filter contaminant columns for plotting
+# ------------------------------------------------------------
+
+# Identify contaminant columns only (exclude metadata/duration columns)
+contaminant_cols <- contaminant_summary %>%
+  select(-ahupua_a, -land_use_type, -mean_duration_years,
+         -max_duration_years, -min_duration_years, -total_pollution_events) %>%
+  colnames()
+
+# ------------------------------------------------------------
+# Reshape to long format for plotting
+# ------------------------------------------------------------
+plot_data <- contaminant_summary %>%
+  select(ahupua_a, all_of(contaminant_cols)) %>%
+  pivot_longer(-ahupua_a, names_to = "contaminant_type_grouped", values_to = "count")
+
+# ------------------------------------------------------------
+# Stacked Bar Plot: All Ahupuaʻa
+# ------------------------------------------------------------
+contaminant_ahupuaa <- ggplot(plot_data, aes(x = fct_reorder(ahupua_a, count, .fun = sum),
+                                             y = count, fill = contaminant_type_grouped)) +
+  geom_bar(stat = "identity") +
+  scale_color_brewer(type = "qual", palette = "Set3") +
+  labs(
+    title = "Contaminant Profiles by Ahupuaʻa",
+    x = "Ahupuaʻa",
+    y = "Contaminant Count",
+    fill = "Contaminant Group"
+  ) +
+  theme_bw(base_size = 12) +
+  coord_flip()
+
+contaminant_ahupuaa
+
+ggsave("contaminant_ahupuaa_9July2025.png", contaminant_ahupuaa, width = 9, height = 7) ## incorrect -- multiple counts of contaminants for each ahupua'a x land use type 
+
+# ----------------------------------------------------
+# Distinct counts of contaminants for each ahupua'a 
+# ----------------------------------------------------
+
+# Step 1: Select distinct ahupuaʻa-level data (one row per ahupuaʻa)
+contaminant_unique <- contaminant_summary %>%
+  distinct(ahupua_a, .keep_all = TRUE)  # Keeps only the first row per ahupuaʻa
+
+# Step 2: Identify contaminant columns
+contaminant_cols <- contaminant_unique %>%
+  select(-ahupua_a, -land_use_type, -mean_duration_years,
+         -max_duration_years, -min_duration_years, -total_pollution_events) %>%
+  colnames()
+
+# Step 3: Reshape to long format for plotting
+plot_data <- contaminant_unique %>%
+  select(ahupua_a, all_of(contaminant_cols)) %>%
+  pivot_longer(-ahupua_a, names_to = "contaminant_type_grouped", values_to = "count")
+
+# Step 4: Create stacked bar plot (no double-counting)
+contaminant_ahupuaa <- ggplot(plot_data, aes(
+  x = fct_reorder(ahupua_a, count, .fun = sum),
+  y = count,
+  fill = contaminant_type_grouped)) +
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(type = "qual", palette = "Set3") +
+  labs(
+    title = "Contaminant Profiles by Ahupuaʻa (One Record per Site)",
+    x = "Ahupuaʻa",
+    y = "Contaminant Count",
+    fill = "Contaminant Group"
+  ) +
+  theme_bw(base_size = 12) +
+  coord_flip()
+
+contaminant_ahupuaa
+
+ggsave("contaminant_ahupuaa_9July2025.png", contaminant_ahupuaa, width = 9, height = 7) 
+
+# ------------------------------------------------------------
+# Stacked Bar Plot: Faceted by Land Use Group
+# ------------------------------------------------------------
+plot_data_landuse <- contaminant_summary %>%
+  select(ahupua_a, land_use_type, all_of(contaminant_cols)) %>%
+  pivot_longer(cols = all_of(contaminant_cols),
+               names_to = "contaminant_type_grouped",
+               values_to = "count")
+
+contaminant_ahupuaa_landuse <- ggplot(plot_data_landuse, aes(x = fct_reorder(ahupua_a, count, .fun = sum),
+                                                             y = count, fill = contaminant_type_grouped)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ land_use_type, scales = "free_y") +
+  scale_color_brewer(type = "qual", palette = "Set3") +
+  labs(
+    title = "Contaminant Profiles by Ahupuaʻa (Faceted by Land Use)",
+    x = "Ahupuaʻa",
+    y = "Contaminant Count",
+    fill = "Contaminant Group"
+  ) +
+  theme_bw(base_size = 12) +
+  coord_flip()
+
+contaminant_ahupuaa_landuse 
+
+ggsave("contaminant_ahupuaa_landuse_9July2025.png", contaminant_ahupuaa_landuse, width = 9, height = 7)
+
+
+# ------------------------------------------------------------
+# Plot: Mean Duration of Pollution Events by Ahupuaʻa,
+#       Grouped by Contaminant Type and Faceted by Land Use
+# ------------------------------------------------------------
+
+# Prepare data from existing contaminant_summary
+plot_data <- contaminant_summary %>%
+  filter(!is.na(mean_duration_years)) %>%
+  select(ahupua_a, land_use_type, mean_duration_years)
+
+# Ensure ahupuaʻa is a factor and reorder by mean duration
+plot_data <- plot_data %>%
+  group_by(land_use_type) %>%
+  mutate(ahupua_a = fct_reorder(ahupua_a, mean_duration_years, .desc = TRUE)) %>%
+  ungroup()
+
+# Plot: Mean duration by ahupuaʻa and contaminant type, faceted by land use
+duration_plot <- ggplot(plot_data, aes(x = ahupua_a, y = mean_duration_years)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ land_use_type, scales = "free_y") +
+  scale_color_brewer(type = "qual", palette = "Set3") +
+  labs(
+    title = "Mean Duration of Pollution Events by Ahupuaʻa and Land Use",
+    x = "Ahupuaʻa",
+    y = "Mean Duration (Years)",
+    fill = "Contaminant Type"
+  ) +
+  coord_flip() +
+  theme_bw(base_size = 12)
+
+
+duration_plot
+
+# Save
+ggsave("mean_pollution_duration_by_ahupuaa_9July2025.png", duration_plot, width = 12, height = 8)
+
+
+# ------------------------------------------------------------
+# Cluster and Visualize Ahupuaʻa Based on Contaminant Profiles
+# ------------------------------------------------------------
+
+# Step 1: Set number of clusters and define cluster colors
+k <- 4
+cluster_colors_named <- c("1" = "#E41A1C", "2" = "#377EB8", "3" = "#4DAF4A", "4" = "#984EA3")
+
+# Step 2: Prepare numeric matrix for clustering (exclude non-numeric columns)
+cluster_matrix <- contaminant_summary %>%
+  column_to_rownames("ahupua_a") %>%
+  select(where(is.numeric)) %>%
+  scale()
+
+# Step 3: Perform hierarchical clustering using Ward’s method
+hc <- hclust(dist(cluster_matrix), method = "ward.D2")
+cluster_ids <- cutree(hc, k = k)
+
+# Step 4: Add cluster IDs back to your contaminant_summary
+contaminant_summary <- contaminant_summary %>%
+  mutate(cluster_id = factor(cluster_ids[rownames(.)]))
+
+# Step 5: Dendrogram with color-coded legend
+legend_df <- tibble(
+  cluster_id = factor(1:4),
+  x = 1:4,
+  y = 1
+)
+
+legend_plot <- ggplot(legend_df, aes(x = x, y = y, fill = cluster_id)) +
+  geom_col() +
+  scale_fill_manual(
+    name = "Cluster",
+    values = cluster_colors_named,
+    labels = c(
+      "Cluster 1 (Red)",
+      "Cluster 2 (Blue)",
+      "Cluster 3 (Green)",
+      "Cluster 4 (Purple)"
+    )
+  ) +
+  theme_void() +
+  theme(legend.position = "right")
+
+legend <- cowplot::get_legend(legend_plot)
+
+dendrogram_plot <- fviz_dend(hc,
+                             k = k,
+                             k_colors = cluster_colors_named,
+                             cex = 0.9,
+                             rect = TRUE,
+                             rect_fill = TRUE,
+                             main = "Clustering of Ahupuaʻa Based on Contaminant Profiles",
+                             xlab = "Sites (Ahupuaʻa)",
+                             ylab = "Dissimilarity (Height)",
+                             horiz = TRUE,
+                             show_labels = TRUE) +
+  theme_bw(base_size = 13) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 11)
+  )
+
+# Step 6: Combine and export dendrogram with legend
+final_plot <- cowplot::plot_grid(dendrogram_plot, legend, rel_widths = c(0.85, 0.15))
+
+final_plot 
+
+ggsave("cluster_by_ahupuaa_with_legend_25June2025.png", final_plot, width = 14, height = 8)
+
+
+
+
+# -----------------------------------------------
+# Step 1: Set number of clusters
+# -----------------------------------------------
+k <- 4
+
+# -----------------------------------------------
+# Step 2: Extract numeric matrix and perform clustering
+# -----------------------------------------------
+# Ensure 'ahupua_a' is rownames, keep only numeric columns
+numeric_matrix <- contaminant_summary %>%
+  dplyr::select(-land_use_type) %>%
+  column_to_rownames("ahupua_a") %>%
+  select(where(is.numeric)) %>%
+  scale()
+
+# Hierarchical clustering
+hc <- hclust(dist(numeric_matrix), method = "ward.D2")
+cluster_ids <- cutree(hc, k = k)
+
+# -----------------------------------------------
+# Step 3: Add cluster_id back to original data
+# -----------------------------------------------
+# Create a new tibble with ahupuaʻa and their cluster assignments
+cluster_lookup <- tibble(
+  ahupua_a = rownames(numeric_matrix),
+  cluster_id = as.factor(cluster_ids)
+)
+
+# Join cluster_id back to contaminant_summary
+contaminant_summary <- contaminant_summary %>%
+  left_join(cluster_lookup, by = "ahupua_a")
+
+# -----------------------------------------------
+# Step 4: Clean Inf values if present
+# -----------------------------------------------
+contaminant_summary <- contaminant_summary %>%
+  mutate(across(contains("duration_years"), ~ ifelse(is.infinite(.), NA, .)))
+
+# -----------------------------------------------
+# Step 5: Summarize by cluster
+# -----------------------------------------------
+cluster_profiles <- contaminant_summary %>%
+  dplyr::group_by(cluster_id.y) %>%
+  dplyr::summarise(across(where(is.numeric), ~ round(mean(.x, na.rm = TRUE), 2)), .groups = "drop")
+
+# -----------------------------------------------
+# Step 6: Export summary table
+# -----------------------------------------------
+write.csv(cluster_profiles, "cluster_profiles_summary.csv", row.names = FALSE)
+print(cluster_profiles)
+
+
+
+
+# ------------------------------------------------------------
+# PCA ####
+# ------------------------------------------------------------
+
+library(tidyverse)
+library(vegan)
+library(ggrepel)
+library(ggplot2)
+
+# Step 1: Clean and prepare data
+cleaned_df <- contaminant_summary %>%
+  filter(if_all(where(is.numeric), ~ is.finite(.))) %>%
+  select(ahupua_a, land_use_type, where(is.numeric)) %>%
+  select(-max_duration_years, -min_duration_years, -mean_duration_years, -total_pollution_events) %>%
+  select(-contains("cluster_id")) %>%
+  mutate(land_use_type = str_remove(land_use_type, "\\s*\\d+$"))  # remove trailing numbers
+
+collapsed_df <- contaminant_summary %>%
+  filter(if_all(where(is.numeric), ~ is.finite(.))) %>%
+  group_by(ahupua_a) %>%
+  dplyr::summarise(
+    land_use_combo = paste(sort(unique(str_remove(land_use_type, "\\s*\\d+$"))), collapse = " / "),
+    across(where(is.numeric), mean, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+
+# Step 2: PCA matrix
+pca_data <- cleaned_df %>%
+  select(where(is.numeric)) %>%
+  select(where(~ var(.) != 0)) %>%
+  scale()
+
+# Step 3: Run PCA
+set.seed(345)
+pca_result <- prcomp(pca_data, center = TRUE, scale. = TRUE)
+
+# Step 4: Extract site scores and metadata
+pca_scores <- as.data.frame(pca_result$x[, 1:2]) %>%  # PC1 and PC2
+  rownames_to_column("row_id") %>%
+  bind_cols(cleaned_df %>% select(ahupua_a, land_use_type))
+
+# Step 5: Extract variance explained
+pc_var <- summary(pca_result)$importance[2, 1:2] * 100
+xlab_txt <- paste0("PC1 (", round(pc_var[1], 1), "%)")
+ylab_txt <- paste0("PC2 (", round(pc_var[2], 1), "%)")
+
+
+
+# Step 6: Loadings (variable vectors) - scaled up for clarity
+loadings <- as.data.frame(pca_result$rotation[, 1:2]) %>%
+  rownames_to_column("variable") %>%
+  mutate(PC1 = PC1 * 5,   # extended arrow length
+         PC2 = PC2 * 5)
+
+# Step 8: Final PCA plot
+pca_plot <- ggplot(pca_scores, aes(x = PC1, y = PC2, color = land_use_type)) +
+  geom_point(size = 3) +
+  geom_text_repel(aes(label = ahupua_a), size = 3.5, max.overlaps = Inf) +
+  geom_segment(data = loadings,
+               aes(x = 0, y = 0, xend = PC1, yend = PC2),
+               arrow = arrow(length = unit(0.3, "cm")),
+               color = "gray30", size = 0.7, inherit.aes = FALSE) +
+  geom_text_repel(data = loadings,
+                  aes(x = PC1, y = PC2, label = variable),
+                  color = "gray30", size = 3.2, fontface = "italic",
+                  max.overlaps = Inf,
+                  box.padding = 0.4, point.padding = 0.5, force = 5) +
+  scale_color_manual(values = land_use_palette) +
+  labs(
+    title = "PCA of Contaminants by Land Use",
+    x = xlab_txt, y = ylab_txt, color = "Land Use"
+  ) +
+  theme_bw(base_size = 13)
+
+pca_plot 
+# Save
+
+pca_plot
+
+ggsave("pca_9Jul2025.png", pca_plot, width = 14, height = 8, dpi = 300)
+
+
+
+# -----------------------
+## PCA by ahupua'a
+# -------------------------
+
+library(ggrepel)
+
+# Step 2: Extract and scale numeric variables for PCA
+pca_data <- cleaned_df %>%
+  select(where(is.numeric)) %>%
+  scale()
+
+# Step 3: Run PCA
+set.seed(345)
+pca_result <- prcomp(pca_data, center = TRUE, scale. = TRUE)
+
+# Step 4: Merge metadata for labeling
+metadata <- cleaned_df %>% select(ahupua_a)
+pca_scores <- as.data.frame(pca_result$x) %>%
+  bind_cols(metadata)
+
+# Step 5: Plot PCA using ggrepel for ahupuaʻa labels
+pca_2 <- autoplot(pca_result,
+         data = pca_scores,
+         label = FALSE,
+         loadings = TRUE,
+         loadings.label = TRUE,
+         loadings.label.size = 3) +
+  geom_text_repel(aes(x = PC1, y = PC2, label = ahupua_a), size = 3) +
+  labs(title = "PCA of Contaminant and Duration Metrics by Ahupuaʻa") +
+  theme_bw()
+
+pca_2
+
+ggsave("pca_2_9July2025.png", pca_2, width = 14, height = 8, dpi = 300)
+
+
+# ---------------------------
+# 25-August-2025 PCA ####
+# ---------------------------
+
+# ------------------------------------------------------------
+# PCA: sites (ahupuaʻa) + contaminant vectors only
+# ------------------------------------------------------------
+
+library(tidyverse)
+library(ggrepel)
+
+# 0) Decide which columns are contaminants (exclude metadata)
+contaminant_cols <- contaminant_summary %>%
+  select(where(is.numeric)) %>%
+  select(-any_of(c("max_duration_years","min_duration_years",
+                   "mean_duration_years","total_pollution_events"))) %>%
+  names()
+
+# 1) Collapse to one row per ahupuaʻa (keep all land uses as an info field; not used for color)
+collapsed_df <- contaminant_summary %>%
+  filter(if_all(where(is.numeric), ~ is.finite(.))) %>%
+  group_by(ahupua_a) %>%
+  dplyr::summarise(
+    land_use_combo = paste(sort(unique(str_remove(land_use_type, "\\s*\\d+$"))),
+                           collapse = " / "),
+    across(all_of(contaminant_cols), ~ mean(.x, na.rm = TRUE)),
+    .groups = "drop"
+  )
+
+# 2) Build PCA matrix (remove zero-variance cols, scale)
+pca_mat <- collapsed_df %>%
+  select(all_of(contaminant_cols)) %>%
+  select(where(~ var(.x, na.rm = TRUE) > 0))
+
+pca_scaled <- scale(pca_mat)
+
+# 3) PCA
+set.seed(345)
+pca_res <- prcomp(pca_scaled, center = TRUE, scale. = TRUE)
+
+# 4) Scores (sites) and loadings (variables)
+scores_df <- as.data.frame(pca_res$x[, 1:2]) %>%
+  rownames_to_column("row_id") %>%
+  mutate(ahupua_a = collapsed_df$ahupua_a)
+
+# Percent variance for axis labels
+pc_var <- summary(pca_res)$importance[2, 1:2] * 100
+xlab_txt <- paste0("PC1 (", round(pc_var[1], 1), "%)")
+ylab_txt <- paste0("PC2 (", round(pc_var[2], 1), "%)")
+
+# Loadings scaled to fit score space (biplot-like scaling)
+load_raw <- pca_res$rotation[, 1:2]
+# scale loadings so arrows live nicely within the cloud of points
+arrow_mult <- min(
+  max(abs(scores_df$PC1), na.rm = TRUE) / max(abs(load_raw[, 1]), na.rm = TRUE),
+  max(abs(scores_df$PC2), na.rm = TRUE) / max(abs(load_raw[, 2]), na.rm = TRUE)
+) * 0.85
+
+load_df <- as.data.frame(load_raw * arrow_mult) %>%
+  rownames_to_column("variable")
+
+# 5) Plot: black points for ahupuaʻa, dark-gray vectors + labels for contaminants
+ 
+pca_plot <- ggplot(scores_df, aes(PC1, PC2)) +
+  # Ahupuaʻa points
+  geom_point(size = 3, color = "black", alpha = 0.9) +
+  
+  # Ahupuaʻa labels (teal/dark turquoise)
+  geom_text_repel(aes(label = ahupua_a),
+                  size = 3.8,
+                  color = "#008080",         # dark teal
+                  max.overlaps = Inf,
+                  box.padding = 0.6,         # more space around labels
+                  point.padding = 0.6,       # more space from points
+                  force = 6,                 # stronger repulsion
+                  segment.size = 0.2,        # thin connector lines
+                  segment.color = "gray50") +
+  
+  # Contaminant vectors
+geom_segment(data = load_df,
+             aes(x = 0, y = 0, xend = PC1, yend = PC2),
+             inherit.aes = FALSE,
+             color = "gray30", linewidth = 0.7,
+             arrow = arrow(length = unit(0.28, "cm"))) +
+
+# Contaminant vector labels (nudged outward, no overlap with arrows)
+geom_text_repel(data = load_df,
+                aes(x = PC1, y = PC2, label = variable),
+                inherit.aes = FALSE,
+                color = "gray30", size = 3.2, fontface = "italic",
+                max.overlaps = Inf,
+                box.padding = 0.5, point.padding = 0.6,
+                force = 6,
+                nudge_x = sign(load_df$PC1) * 0.5,   # nudge away from arrow tips
+                nudge_y = sign(load_df$PC2) * 0.5) + 
+  
+  # Labels and theme
+  labs(title = "PCA of Contaminant Profiles (Sites + Variable Vectors)",
+       x = xlab_txt, y = ylab_txt) +
+  theme_bw(base_size = 13) +
+  theme(legend.position = "none")
+
+pca_plot
+
+# Save
+ggsave("pca_ahupua_contaminants_25Aug2025.png", pca_plot, width = 14, height = 8, dpi = 300)
+
+
+
+# ----------------------
+# NMDS ####
+# ---------------------
+
+
+# Step 1: Prepare contaminant matrix (rows = sites, columns = contaminants)
+nmds_data <- contaminant_summary %>%
+  filter(if_all(where(is.numeric), ~ is.finite(.))) %>%
+  column_to_rownames("ahupua_a") %>%
+  select(dioxins:pfas)
+
+# Step 2: Run NMDS
+set.seed(123)
+nmds_result <- metaMDS(nmds_data, distance = "bray", k = 2, trymax = 100)
+
+# Print model fit (stress value)
+cat("NMDS Stress:", round(nmds_result$stress, 3), "\n")
+
+# Step 3: Fit environmental vectors
+env_vars <- contaminant_summary %>%
+  filter(if_all(where(is.numeric), ~ is.finite(.))) %>%
+  select(dioxins:pfas, mean_duration_years, total_pollution_events)
+
+envfit_result <- envfit(nmds_result, env_vars, permutations = 999)
+
+# Step 4: Extract site scores
+site_scores <- as.data.frame(scores(nmds_result, display = "sites")) %>%
+  rownames_to_column("ahupua_a") %>%
+  left_join(contaminant_summary %>% select(ahupua_a, land_use_type), by = "ahupua_a")
+
+# Step 5: Extract significant vectors (p < 0.05) and format for ggplot
+vectors_df <- scores(envfit_result, display = "vectors") %>%
+  as.data.frame() %>%
+  rownames_to_column("variable") %>%
+  mutate(p_value = envfit_result$vectors$pvals[variable]) %>%
+ # filter(p_value < 0.10) %>%
+  mutate(xend = NMDS1 * 0.5,
+         yend = NMDS2 * 0.5)
+
+# Step 6: Plot NMDS with arrows only (no ellipses)
+nmds_1 <- ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = land_use_type)) +
+  geom_point(size = 3) +
+  geom_text_repel(aes(label = ahupua_a), size = 3) +
+  geom_segment(data = vectors_df,
+               aes(x = 0, y = 0, xend = xend, yend = yend),
+               arrow = arrow(length = unit(0.25, "cm")),
+               color = "black", size = 0.7) +
+  geom_text_repel(data = vectors_df,
+                  aes(x = xend, y = yend, label = variable),
+                  size = 3.2, color = "black") +
+  labs(title = "NMDS of Ahupuaʻa with Significant Contaminant and Duration Vectors",
+       subtitle = paste0("Stress = ", round(nmds_result$stress, 3)),
+       x = "NMDS1", y = "NMDS2", color = "Land Use Type") +
+  theme_bw(base_size = 13)
+
+# Display plot
+nmds_1
+
+
+
+# Save plot
+ggsave("nmds_1_9July2025.png", nmds_1, width = 14, height = 8, dpi = 300)
+
+
+
+
+```
+
